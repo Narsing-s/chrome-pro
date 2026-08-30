@@ -52,6 +52,8 @@ chrome-pro/
 │   └── browser-ui.js    # Desktop browser interactions
 ├── docs/                # Product, architecture, setup, roadmap and contributor docs
 ├── public/              # Web manifest and public assets
+├── LICENSE              # Chrome Pro project license
+├── THIRD_PARTY_NOTICES.md # Third-party software notices
 └── .github/             # CI, release automation, issue/PR templates
 ```
 
@@ -130,7 +132,9 @@ See [`docs/roadmap.md`](docs/roadmap.md) for the maintained roadmap.
 
 ## License
 
-The repository currently does not declare a project license. Until a license is added, contributors should treat the source as **all rights reserved** and should not assume permission to redistribute or reuse it.
+Chrome Pro's original project code and assets are **All Rights Reserved** unless a file explicitly states otherwise. Public visibility of this repository does not grant permission to copy, modify, redistribute, or create derivative works from Chrome Pro-owned materials.
+
+Chrome Pro also uses third-party software such as Electron and Chromium. Those components remain governed by their own licenses and notices. See [`LICENSE`](LICENSE) and [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ## Project identity
 
