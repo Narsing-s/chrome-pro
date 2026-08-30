@@ -40,7 +40,8 @@ function sendState(s) {
   if (alive(s.chrome)) s.chrome.webContents.send('browser:state', { active: s.active, profile: s.profile, incognito: s.incognito, tabs: stateTabs(s) });
 }
 function navigationErrorPage(code, description, url) {
-  return `data:text/html;charset=utf-8,${encodeURIComponent(`<!doctype html><html><head><meta charset="utf-8"><title>Chrome Pro — Page unavailable</title><style>body{margin:0;background:#f8f9fa;color:#202124;font:16px system-ui,-apple-system,Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}.card{max-width:620px;padding:42px;text-align:center}h1{font-size:26px;margin:0 0 12px}p{color:#5f6368;line-height:1.55}.code{font:13px ui-monospace,monospace;background:#eef0f2;border-radius:8px;padding:8px 12px;display:inline-block;margin:10px 0}button{border:0;border-radius:20px;padding:10px 18px;background:#1a73e8;color:white;font-weight:600;cursor:pointer}</style></head><body><div class="card"><h1>We couldn't load this page</h1><p>Chrome Pro could not connect to the requested website. Check your internet connection or try again.</p><div class="code">${String(code || 'NETWORK_ERROR')} — ${String(description || 'Connection failed')}</div><p style="word-break:break-all">${String(url || '')}</p><button onclick="history.back()">Go back</button></div></body></html>`}`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Chrome Pro — Page unavailable</title><style>body{margin:0;background:#f8f9fa;color:#202124;font:16px system-ui,-apple-system,Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}.card{max-width:620px;padding:42px;text-align:center}h1{font-size:26px;margin:0 0 12px}p{color:#5f6368;line-height:1.55}.code{font:13px ui-monospace,monospace;background:#eef0f2;border-radius:8px;padding:8px 12px;display:inline-block;margin:10px 0}button{border:0;border-radius:20px;padding:10px 18px;background:#1a73e8;color:white;font-weight:600;cursor:pointer}</style></head><body><div class="card"><h1>We couldn't load this page</h1><p>Chrome Pro could not connect to the requested website. Check your internet connection or try again.</p><div class="code">${String(code || 'NETWORK_ERROR')} — ${String(description || 'Connection failed')}</div><p style="word-break:break-all">${String(url || '')}</p><button onclick="history.back()">Go back</button></div></body></html>`;
+  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 function createWindow(profile = 'default', incognito = false) {
   const ses = incognito ? session.fromPartition(`incognito-${Date.now()}-${Math.random()}`) : session.fromPath(profilePath(profile), { cache: true });
@@ -54,7 +55,7 @@ function createWindow(profile = 'default', incognito = false) {
     const url = normalizeUrl(u);
     v.webContents.loadURL(url, { timeout: NAV_TIMEOUT_MS }).catch(error => console.warn('Chrome Pro navigation failed:', error.code || error.message, url));
     v.webContents.on('did-navigate', (_e, n) => { if (!incognito) { data.history.unshift({ url: n, time: Date.now() }); data.history = data.history.slice(0, 500); saveData(); } sendState(s); });
-    ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-fail-load', 'did-navigate-in-page'].forEach(e => v.webContents.on(e, () => sendState(s)));
+    ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate-in-page'].forEach(e => v.webContents.on(e, () => sendState(s)));
     v.webContents.on('did-fail-load', (_e, code, description, failedUrl, isMainFrame) => {
       if (!isMainFrame || code === -3) return;
       console.warn(`Chrome Pro load failed (${code}): ${description}`, failedUrl);
