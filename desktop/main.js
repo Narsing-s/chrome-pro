@@ -38,7 +38,6 @@ function createWindow(profile = 'default', incognito = false) {
     layout(win, s); sendState(s); return v;
   };
   s.addTab = addTab;
-  const chrome = new BrowserView({ webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
   s.chrome = win.webContents; win.webContents.loadFile(path.join(__dirname, 'browser-ui.html')); win.webContents.once('did-finish-load', () => { layout(win, s); sendState(s); }); addTab();
   win.on('resize', () => layout(win, s)); win.on('focus', () => { activeWindow = win; sendState(s); });
   win.on('closed', () => { s.tabs.forEach(v => { if (alive(v)) v.webContents.destroy(); }); windows.delete(win.id); if (activeWindow === win) activeWindow = BrowserWindow.getAllWindows()[0] || null; }); return win;
@@ -52,7 +51,7 @@ app.whenReady().then(() => {
   ipcMain.handle('window:maximize', () => { if (!activeWindow) return false; activeWindow.isMaximized() ? activeWindow.unmaximize() : activeWindow.maximize(); return activeWindow.isMaximized(); });
   ipcMain.handle('window:close', () => activeWindow?.close());
   ipcMain.handle('browser:open', (_e, u) => state()?.addTab(u)); ipcMain.handle('browser:new-tab', () => state()?.addTab());
-  ipcMain.handle('browser:close-tab', (_e, i) => { const s = state(), n = i ?? s?.active; if (!s?.tabs[n]) return false; const v = s.tabs[n]; if (alive(v)) v.webContents.destroy(); s.tabs.splice(n, 1); if (!s.tabs.length) s.addTab(); else { s.active = Math.min(n, s.tabs.length - 1); activeWindow.setBrowserView(s.tabs[s.active]); layout(activeWindow, s); sendState(s); } return true; });
+  ipcMain.handle('browser:close-tab', (_e, i) => { const s = state(), n = i ?? s?.active; if (!s?.tabs[n]) return false; const v = s.tabs[n]; if (alive(v)) { activeWindow.removeBrowserView(v); v.webContents.destroy(); } s.tabs.splice(n, 1); if (!s.tabs.length) s.addTab(); else { s.active = Math.min(n, s.tabs.length - 1); activeWindow.setTopBrowserView(s.tabs[s.active]); layout(activeWindow, s); sendState(s); } return true; });
   ipcMain.handle('browser:switch-tab', (_e, i) => { const s = state(); if (!s?.tabs[i]) return false; s.active = i; activeWindow.setTopBrowserView(s.tabs[i]); layout(activeWindow, s); sendState(s); return true; });
   ipcMain.handle('browser:navigate', async (_e, u) => { const t = activeTab(); if (!t) return false; const url = normalizeUrl(u); try { await t.webContents.loadURL(url, { timeout: NAV_TIMEOUT_MS }); return true; } catch (error) { console.warn('Chrome Pro navigation failed:', error.code || error.message, url); return false; } });
   ipcMain.handle('browser:back', () => { const t = activeTab(); if (!t || !canGoBack(t)) return false; try { return t.webContents.navigationHistory.goBack(); } catch (e) { console.warn('Back failed:', e.message); return false; } });
