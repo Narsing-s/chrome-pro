@@ -19,7 +19,7 @@ function alive(v) { return !!(v && v.webContents && !v.webContents.isDestroyed()
 function navigationHistory(t) { return alive(t) ? t.webContents.navigationHistory : null; }
 function canGoBack(t) { const h = navigationHistory(t); return !!(h && h.canGoBack()); }
 function canGoForward(t) { const h = navigationHistory(t); return !!(h && h.canGoForward()); }
-function layout(w, s) { const b = w.getContentBounds(); if (alive(s.chrome)) s.chrome.setBounds({ x: 0, y: 0, width: b.width, height: UI_HEIGHT }); const v = s.tabs[s.active]; if (alive(v)) v.setBounds({ x: 0, y: UI_HEIGHT, width: b.width, height: Math.max(0, b.height - UI_HEIGHT) }); }
+function layout(w, s) { const b = w.getContentBounds(); const v = s.tabs[s.active]; if (alive(v)) v.setBounds({ x: 0, y: UI_HEIGHT, width: b.width, height: Math.max(0, b.height - UI_HEIGHT) }); }
 function stateTabs(s) { return s.tabs.filter(alive).map(v => ({ title: v.webContents.getTitle() || 'New Tab', url: v.webContents.getURL(), loading: v.webContents.isLoading(), canGoBack: canGoBack(v), canGoForward: canGoForward(v) })); }
 function sendState(s) { if (alive(s.chrome)) s.chrome.webContents.send('browser:state', { active: s.active, profile: s.profile, incognito: s.incognito, tabs: stateTabs(s) }); }
 function navigationErrorPage(code, description, url) { const html = `<!doctype html><html><head><meta charset="utf-8"><title>Chrome Pro — Page unavailable</title><style>body{margin:0;background:#f8f9fa;color:#202124;font:16px system-ui,-apple-system,Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}.card{max-width:620px;padding:42px;text-align:center}h1{font-size:26px;margin:0 0 12px}p{color:#5f6368;line-height:1.55}.code{font:13px ui-monospace,monospace;background:#eef0f2;border-radius:8px;padding:8px 12px;display:inline-block;margin:10px 0}button{border:0;border-radius:20px;padding:10px 18px;background:#1a73e8;color:white;font-weight:600;cursor:pointer}</style></head><body><div class="card"><h1>We couldn't load this page</h1><p>Chrome Pro could not connect to the requested website. Check your internet connection or try again.</p><div class="code">${String(code || 'NETWORK_ERROR')} — ${String(description || 'Connection failed')}</div><p style="word-break:break-all">${String(url || '')}</p><button onclick="history.back()">Go back</button></div></body></html>`; return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`; }
@@ -30,7 +30,7 @@ function createWindow(profile = 'default', incognito = false) {
   windows.set(win.id, s); activeWindow = win;
   const addTab = (u = START_URL) => {
     const v = new BrowserView({ webPreferences: { session: ses, contextIsolation: true, sandbox: true, nodeIntegration: false } });
-    s.tabs.push(v); s.active = s.tabs.length - 1; win.setBrowserView(v);
+    s.tabs.push(v); s.active = s.tabs.length - 1; win.addBrowserView(v);
     const url = normalizeUrl(u); v.webContents.loadURL(url, { timeout: NAV_TIMEOUT_MS }).catch(error => console.warn('Chrome Pro navigation failed:', error.code || error.message, url));
     v.webContents.on('did-navigate', (_e, n) => { if (!incognito) { data.history.unshift({ url: n, time: Date.now() }); data.history = data.history.slice(0, 500); saveData(); } sendState(s); });
     ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-fail-load', 'did-navigate-in-page'].forEach(e => v.webContents.on(e, () => sendState(s)));
@@ -39,9 +39,9 @@ function createWindow(profile = 'default', incognito = false) {
   };
   s.addTab = addTab;
   const chrome = new BrowserView({ webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
-  s.chrome = chrome; win.setBrowserView(chrome); chrome.webContents.loadFile(path.join(__dirname, 'browser-ui.html')); chrome.webContents.once('did-finish-load', () => { layout(win, s); sendState(s); }); addTab();
+  s.chrome = win.webContents; win.webContents.loadFile(path.join(__dirname, 'browser-ui.html')); win.webContents.once('did-finish-load', () => { layout(win, s); sendState(s); }); addTab();
   win.on('resize', () => layout(win, s)); win.on('focus', () => { activeWindow = win; sendState(s); });
-  win.on('closed', () => { s.tabs.forEach(v => { if (alive(v)) v.webContents.destroy(); }); if (alive(chrome)) chrome.webContents.destroy(); windows.delete(win.id); if (activeWindow === win) activeWindow = BrowserWindow.getAllWindows()[0] || null; }); return win;
+  win.on('closed', () => { s.tabs.forEach(v => { if (alive(v)) v.webContents.destroy(); }); windows.delete(win.id); if (activeWindow === win) activeWindow = BrowserWindow.getAllWindows()[0] || null; }); return win;
 }
 function state() { return windows.get(activeWindow?.id); }
 function activeTab() { const s = state(); return s?.tabs[s.active]; }
@@ -53,7 +53,7 @@ app.whenReady().then(() => {
   ipcMain.handle('window:close', () => activeWindow?.close());
   ipcMain.handle('browser:open', (_e, u) => state()?.addTab(u)); ipcMain.handle('browser:new-tab', () => state()?.addTab());
   ipcMain.handle('browser:close-tab', (_e, i) => { const s = state(), n = i ?? s?.active; if (!s?.tabs[n]) return false; const v = s.tabs[n]; if (alive(v)) v.webContents.destroy(); s.tabs.splice(n, 1); if (!s.tabs.length) s.addTab(); else { s.active = Math.min(n, s.tabs.length - 1); activeWindow.setBrowserView(s.tabs[s.active]); layout(activeWindow, s); sendState(s); } return true; });
-  ipcMain.handle('browser:switch-tab', (_e, i) => { const s = state(); if (!s?.tabs[i]) return false; s.active = i; activeWindow.setBrowserView(s.tabs[i]); layout(activeWindow, s); sendState(s); return true; });
+  ipcMain.handle('browser:switch-tab', (_e, i) => { const s = state(); if (!s?.tabs[i]) return false; s.active = i; activeWindow.setTopBrowserView(s.tabs[i]); layout(activeWindow, s); sendState(s); return true; });
   ipcMain.handle('browser:navigate', async (_e, u) => { const t = activeTab(); if (!t) return false; const url = normalizeUrl(u); try { await t.webContents.loadURL(url, { timeout: NAV_TIMEOUT_MS }); return true; } catch (error) { console.warn('Chrome Pro navigation failed:', error.code || error.message, url); return false; } });
   ipcMain.handle('browser:back', () => { const t = activeTab(); if (!t || !canGoBack(t)) return false; try { return t.webContents.navigationHistory.goBack(); } catch (e) { console.warn('Back failed:', e.message); return false; } });
   ipcMain.handle('browser:forward', () => { const t = activeTab(); if (!t || !canGoForward(t)) return false; try { return t.webContents.navigationHistory.goForward(); } catch (e) { console.warn('Forward failed:', e.message); return false; } });
