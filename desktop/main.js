@@ -1,7 +1,9 @@
 const { app, BrowserWindow, BrowserView, session, ipcMain, shell, Menu } = require('electron');
-const path = require('path'); const fs = require('fs');
+const path = require('path');
+const fs = require('fs');
 const START_URL = process.env.CHROME_PRO_START_URL || 'https://chrome-pro.vercel.app';
-const windows = new Map(); let activeWindow = null;
+const windows = new Map();
+let activeWindow = null;
 const dataFile = () => path.join(app.getPath('userData'), 'browser-data.json');
 let data = { bookmarks: [], history: [] };
 function loadData(){ try { data = JSON.parse(fs.readFileSync(dataFile(),'utf8')); } catch {} }
@@ -18,18 +20,32 @@ function createWindow(profile='default',incognito=false){
  const chrome=new BrowserView({webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}}); s.chrome=chrome; win.setBrowserView(chrome); chrome.webContents.loadFile(path.join(__dirname,'browser-ui.html')); chrome.webContents.once('did-finish-load',()=>{layout(win,s);sendState(s)}); addTab();
  win.on('resize',()=>layout(win,s)); win.on('closed',()=>{s.tabs.forEach(v=>{if(!v.webContents.isDestroyed())v.webContents.destroy()});if(!chrome.webContents.isDestroyed())chrome.webContents.destroy();windows.delete(win.id);if(activeWindow===win)activeWindow=BrowserWindow.getAllWindows()[0]||null}); return win;
 }
-function state(){return windows.get(activeWindow?.id)} function activeTab(){const s=state();return s?.tabs[s.active]}
+function state(){return windows.get(activeWindow?.id)}
+function activeTab(){const s=state();return s?.tabs[s.active]}
 app.whenReady().then(()=>{
  loadData();
  ipcMain.handle('app:info',()=>({name:app.getName(),version:app.getVersion(),platform:process.platform,arch:process.arch}));
- ipcMain.handle('browser:open',(_e,u)=>state()?.addTab(u)); ipcMain.handle('browser:new-tab',()=>state()?.addTab());
+ ipcMain.handle('browser:open',(_e,u)=>state()?.addTab(u));
+ ipcMain.handle('browser:new-tab',()=>state()?.addTab());
  ipcMain.handle('browser:close-tab',(_e,i)=>{const s=state();const n=i??s?.active;if(!s||!s.tabs[n])return false;const v=s.tabs[n];if(!v.webContents.isDestroyed())v.webContents.destroy();s.tabs.splice(n,1);if(!s.tabs.length)s.addTab();else{s.active=Math.min(n,s.tabs.length-1);activeWindow.setBrowserView(s.tabs[s.active]);layout(activeWindow,s);sendState(s)}return true});
  ipcMain.handle('browser:switch-tab',(_e,i)=>{const s=state();if(!s?.tabs[i])return false;s.active=i;activeWindow.setBrowserView(s.tabs[i]);layout(activeWindow,s);sendState(s);return true});
- ipcMain.handle('browser:navigate',(_e,u)=>activeTab()?.webContents.loadURL(normalizeUrl(u))); ipcMain.handle('browser:back',()=>activeTab()?.webContents.canGoBack()&&activeTab().webContents.goBack()); ipcMain.handle('browser:forward',()=>activeTab()?.webContents.canGoForward()&&activeTab().webContents.goForward()); ipcMain.handle('browser:reload',()=>activeTab()?.webContents.reload());
- ipcMain.handle('browser:new-profile',(_e,n)=>createWindow(String(n||'profile').replace(/[^a-z0-9_-]/gi,'_')).id); ipcMain.handle('browser:incognito',()=>createWindow('incognito',true).id);
- ipcMain.handle('browser:tabs',()=>{const s=state();return s?{active:s.active,count:s.tabs.length,profile:s.profile,incognito:s.incognito,tabs:s.tabs.map(v=>({title:v.webContents.getTitle()||'New Tab',url:v.webContents.getURL()}))}:{active:0,count:0,tabs:[]}});
- ipcMain.handle('browser:history',()=>data.history); ipcMain.handle('browser:bookmarks',()=>data.bookmarks); ipcMain.handle('browser:add-bookmark',(_e,b)=>{if(b?.url&&!data.bookmarks.some(x=>x.url===b.url)){data.bookmarks.unshift({title:String(b.title||b.url),url:String(b.url),time:Date.now()});saveData()}return data.bookmarks}); ipcMain.handle('browser:remove-bookmark',(_e,u)=>{data.bookmarks=data.bookmarks.filter(x=>x.url!==u);saveData();return data.bookmarks}); ipcMain.handle('browser:downloads',()=>app.getPath('downloads')); ipcMain.handle('browser:clear-data',async()=>{const s=state();if(s&&!s.incognito){await s.session.clearCache();await s.session.clearStorageData()}return true}); ipcMain.handle('browser:external',async(_e,u)=>{if(typeof u==='string'&&/^https?:/i.test(u))await shell.openExternal(u);return true});
+ ipcMain.handle('browser:navigate',(_e,u)=>activeTab()?.webContents.loadURL(normalizeUrl(u)));
+ ipcMain.handle('browser:back',()=>activeTab()?.webContents.canGoBack()&&activeTab().webContents.goBack());
+ ipcMain.handle('browser:forward',()=>activeTab()?.webContents.canGoForward()&&activeTab().webContents.goForward());
+ ipcMain.handle('browser:reload',()=>activeTab()?.webContents.reload());
+ ipcMain.handle('browser:new-profile',(_e,n)=>createWindow(String(n||'profile').replace(/[^a-z0-9_-]/gi,'_')).id);
+ ipcMain.handle('browser:incognito',()=>createWindow('incognito',true).id);
+ ipcMain.handle('browser:tabs',()=>{const s=state();return s?{active:s.active,profile:s.profile,incognito:s.incognito,tabs:s.tabs.map(v=>({title:v.webContents.getTitle()||'New Tab',url:v.webContents.getURL()}))}:{active:0,tabs:[]}});
+ ipcMain.handle('browser:history',()=>data.history);
+ ipcMain.handle('browser:bookmarks',()=>data.bookmarks);
+ ipcMain.handle('browser:add-bookmark',(_e,b)=>{if(b?.url&&!data.bookmarks.some(x=>x.url===b.url)){data.bookmarks.unshift({title:String(b.title||b.url),url:String(b.url),time:Date.now()});saveData()}return data.bookmarks});
+ ipcMain.handle('browser:remove-bookmark',(_e,u)=>{data.bookmarks=data.bookmarks.filter(x=>x.url!==u);saveData();return data.bookmarks});
+ ipcMain.handle('browser:downloads',()=>app.getPath('downloads'));
+ ipcMain.handle('browser:clear-data',async()=>{const s=state();if(s&&!s.incognito){await s.session.clearCache();await s.session.clearStorageData()}return true});
+ ipcMain.handle('browser:external',async(_e,u)=>{if(typeof u==='string'&&/^https?:/i.test(u))await shell.openExternal(u);return true});
  Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Chrome Pro',submenu:[{role:'about'},{role:'quit'}]},{label:'Browser',submenu:[{label:'New Tab',accelerator:'CmdOrCtrl+T',click:()=>state()?.addTab()},{label:'New Incognito Window',accelerator:'CmdOrCtrl+Shift+N',click:()=>createWindow('incognito',true)},{label:'New Profile',accelerator:'CmdOrCtrl+Shift+P',click:()=>createWindow(`profile-${Date.now()}`)},{type:'separator'},{role:'reload'},{role:'toggledevtools'}]}]));
- session.defaultSession.setPermissionRequestHandler((_wc,p,cb)=>cb(['notifications','fullscreen','media'].includes(p)); createWindow(); app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow()});
+ session.defaultSession.setPermissionRequestHandler((_wc,p,cb)=>{ cb(['notifications','fullscreen','media'].includes(p)); });
+ createWindow();
+ app.on('activate',()=>{if(!BrowserWindow.getAllWindows().length)createWindow()});
 }).catch(err=>{console.error('Chrome Pro startup failed:',err);app.quit()});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
