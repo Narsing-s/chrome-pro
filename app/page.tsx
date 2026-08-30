@@ -29,7 +29,13 @@ export default function Home() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved) as { tabs?: Tab[]; active?: number; dark?: boolean };
-        if (parsed.tabs?.length) { setTabs(parsed.tabs); setActive(parsed.active ?? parsed.tabs[0].id); setAddress(parsed.tabs.find(t => t.id === (parsed.active ?? parsed.tabs[0].id))?.url ?? ''); }
+        const savedTabs = parsed.tabs;
+        if (savedTabs && savedTabs.length > 0) {
+          const savedActive = parsed.active ?? savedTabs[0].id;
+          setTabs(savedTabs);
+          setActive(savedActive);
+          setAddress(savedTabs.find(t => t.id === savedActive)?.url ?? '');
+        }
         if (parsed.dark) setDark(true);
       }
     } catch {}
@@ -56,7 +62,7 @@ export default function Home() {
   };
   const closeTab = (id: number) => {
     if (tabs.length === 1) return;
-    const next = tabs.filter(t => t.id !== id); const nextActive = active === id ? next[next.length - 1].id : active;
+    const next = tabs.filter(t => t.id !== id); const nextActive = active === id ? next[Math.max(0, next.findIndex(t => t.id !== id))]?.id ?? next[next.length - 1].id : active;
     setTabs(next); setActive(nextActive); setAddress(next.find(t => t.id === nextActive)?.url ?? '');
   };
   const selectTab = (id: number) => { setActive(id); setAddress(tabs.find(t => t.id === id)?.url ?? ''); setQuery(''); };
@@ -95,14 +101,8 @@ export default function Home() {
       <div className="hero"><div className="heroLogo">◉</div><h1>Chrome Pro</h1><p>Fast. Private. Intelligent.</p></div>
       <div className="search"><span>⌕</span><input className="searchInput" autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && doSearch()} placeholder="Search the web or ask AI"/><button onClick={() => setAi(!ai)} className={ai ? 'ai activeAI' : 'ai'}>✦ AI</button><button onClick={doSearch}>Search</button></div>
       {ai && <div className="aiPanel"><b>✦ Chrome Pro AI</b><span>AI mode is ready. Connect your preferred AI provider for answers, summaries and research.</span><button onClick={() => setAi(false)}>×</button></div>}
-
       <div className="quick"><a className="downloadQuick" href="/download">⬇ Download Chrome Pro</a>{shortcuts.map(([icon, name, link]) => <button key={name} onClick={() => window.location.href = link}><span>{icon}</span>{name}</button>)}<button onClick={addTab}><span>＋</span>New tab</button></div>
-
-      <div className="cards">
-        <article><span>⚡</span><div><b>AI Search</b><p>Switch between classic web search and AI-powered research.</p></div></article>
-        <article><span>🛡</span><div><b>Privacy first</b><p>Secure defaults, local session restore and no secret keys in the browser.</p></div></article>
-        <article><span>🚀</span><div><b>Resilient by design</b><p>Search outages fall back without taking down the Chrome Pro interface.</p></div></article>
-      </div>
+      <div className="cards"><article><span>⚡</span><div><b>AI Search</b><p>Switch between classic web search and AI-powered research.</p></div></article><article><span>🛡</span><div><b>Privacy first</b><p>Secure defaults, local session restore and no secret keys in the browser.</p></div></article><article><span>🚀</span><div><b>Resilient by design</b><p>Search outages fall back without taking down the Chrome Pro interface.</p></div></article></div>
       <div className="features"><span>⌘K Quick Search</span><span>⌘L Address Bar</span><span>⌘T New Tab</span><span>⌘W Close Tab</span><span>HTTPS Ready</span></div>
     </section>
     <footer><span>Chrome Pro 1.2</span><span>Private by design</span><span>Session restore enabled</span></footer>
