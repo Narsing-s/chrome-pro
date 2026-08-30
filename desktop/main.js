@@ -2,6 +2,7 @@ const { app, BrowserWindow, BrowserView, session, ipcMain, shell, Menu } = requi
 const path = require('path');
 const fs = require('fs');
 const START_URL = process.env.CHROME_PRO_START_URL || 'https://www.google.com';
+const UI_HEIGHT = 112;
 const windows = new Map(); let activeWindow = null;
 const dataFile=()=>path.join(app.getPath('userData'),'browser-data.json'); let data={bookmarks:[],history:[]};
 function loadData(){try{data=JSON.parse(fs.readFileSync(dataFile(),'utf8'))}catch{}}
@@ -9,9 +10,9 @@ function saveData(){try{fs.mkdirSync(path.dirname(dataFile()),{recursive:true});
 const profilePath=n=>path.join(app.getPath('userData'),'profiles',n);
 function normalizeUrl(input){const v=String(input||'').trim();if(!v)return START_URL;try{return new URL(v).href}catch{}if(/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(v))return`https://${v}`;return`https://www.google.com/search?q=${encodeURIComponent(v)}`}
 function alive(view){return !!(view&&view.webContents&&!view.webContents.isDestroyed())}
-function layout(win,s){const b=win.getContentBounds();if(alive(s.chrome))s.chrome.setBounds({x:0,y:0,width:b.width,height:96});const v=s.tabs[s.active];if(alive(v))v.setBounds({x:0,y:96,width:b.width,height:Math.max(0,b.height-96)})}
+function layout(win,s){const b=win.getContentBounds();if(alive(s.chrome))s.chrome.setBounds({x:0,y:0,width:b.width,height:UI_HEIGHT});const v=s.tabs[s.active];if(alive(v))v.setBounds({x:0,y:UI_HEIGHT,width:b.width,height:Math.max(0,b.height-UI_HEIGHT)})}
 function sendState(s){if(!alive(s.chrome))return;s.chrome.webContents.send('browser:state',{active:s.active,profile:s.profile,incognito:s.incognito,tabs:s.tabs.filter(alive).map(v=>({title:v.webContents.getTitle()||'New Tab',url:v.webContents.getURL()}))})}
-function createWindow(profile='default',incognito=false){const ses=incognito?session.fromPartition(`incognito-${Date.now()}-${Math.random()}`):session.fromPath(profilePath(profile),{cache:true});const win=new BrowserWindow({width:1440,height:900,minWidth:1000,minHeight:650,title:incognito?'Chrome Pro — Incognito':'Chrome Pro',backgroundColor:'#202124'});const s={profile,incognito,session:ses,tabs:[],active:0,chrome:null};windows.set(win.id,s);activeWindow=win;
+function createWindow(profile='default',incognito=false){const ses=incognito?session.fromPartition(`incognito-${Date.now()}-${Math.random()}`):session.fromPath(profilePath(profile),{cache:true});const win=new BrowserWindow({width:1440,height:900,minWidth:1000,minHeight:650,title:incognito?'Chrome Pro — Incognito':'Chrome Pro',backgroundColor:'#202124',autoHideMenuBar:true});const s={profile,incognito,session:ses,tabs:[],active:0,chrome:null};windows.set(win.id,s);activeWindow=win;
  const addTab=(u=START_URL)=>{const v=new BrowserView({webPreferences:{session:ses,contextIsolation:true,sandbox:true,nodeIntegration:false}});s.tabs.push(v);s.active=s.tabs.length-1;win.setBrowserView(v);v.webContents.loadURL(normalizeUrl(u));v.webContents.on('did-navigate',(_e,n)=>{if(!incognito){data.history.unshift({url:n,time:Date.now()});data.history=data.history.slice(0,500);saveData()}sendState(s)});v.webContents.on('page-title-updated',()=>sendState(s));layout(win,s);sendState(s);return v};s.addTab=addTab;
  const chrome=new BrowserView({webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});s.chrome=chrome;win.setBrowserView(chrome);chrome.webContents.loadFile(path.join(__dirname,'browser-ui.html'));chrome.webContents.once('did-finish-load',()=>{layout(win,s);sendState(s)});addTab();
  win.on('resize',()=>layout(win,s));win.on('closed',()=>{s.tabs.forEach(v=>{if(alive(v))v.webContents.destroy()});if(alive(chrome))chrome.webContents.destroy();windows.delete(win.id);if(activeWindow===win)activeWindow=BrowserWindow.getAllWindows()[0]||null});return win}
