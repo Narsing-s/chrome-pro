@@ -1,25 +1,40 @@
 # Search Integration
 
-Chrome Pro separates search from browser rendering so search failures do not become browser failures.
+Chrome Pro keeps search separate from browser rendering so a search-provider failure does not become a browser failure.
 
-## Provider
+## Configure a provider
 
-Configure:
+Set:
 
 ```text
 SEARCH_ENGINE_URL=https://your-search-service.example
 ```
 
-The current adapter expects a search endpoint that accepts `q` and can return JSON using `format=json`.
+The current adapter expects the provider to support:
 
-## Failure behavior
+```text
+GET /search?q=<query>&format=json
+```
 
-Search requests should use a bounded timeout. When the provider is unavailable, the UI should remain responsive and provide an understandable fallback rather than an endless loading state.
+The web application applies a bounded request timeout and should keep the browser UI usable when the provider cannot be reached.
+
+## Recommended test matrix
+
+When changing search integration, test:
+
+| Case | Expected behavior |
+|---|---|
+| Valid results | Results render clearly and links work |
+| Empty results | Explain that nothing matched; do not show an infinite loader |
+| Slow provider | Request ends within the configured timeout |
+| HTTP error | Show a useful error/fallback state |
+| Malformed JSON | Recover without breaking the page |
+| Provider offline | Browser remains usable and fallback is offered |
 
 ## Local testing
 
-Run the search service independently, configure `SEARCH_ENGINE_URL`, then start Chrome Pro. Test successful results, empty results, malformed responses, slow responses, HTTP errors, and complete provider downtime.
+Run the search service independently, configure `SEARCH_ENGINE_URL`, then start Chrome Pro. Test both direct URL navigation and search so a provider outage does not prevent ordinary browsing.
 
-## Future direction
+## Reliability direction
 
-Potential improvements include provider failover, result quality scoring, caching, rate limiting, privacy-preserving telemetry, and configurable search providers.
+Planned improvements include provider failover, result-quality handling, caching, rate limiting, configurable providers, and privacy-preserving operational metrics. These are roadmap items unless the implementation is present in the repository.
