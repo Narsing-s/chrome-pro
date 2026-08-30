@@ -1,43 +1,47 @@
 # Chrome Pro Roadmap
 
-The roadmap is directional, not a promise of delivery dates. Priorities can change based on reliability work and community feedback.
+The roadmap is directional, not a promise of delivery dates. Priorities change with reliability work, technical findings, and community feedback.
 
-## Foundation
+## Now — Reliable core
 
-- Stable Electron startup
+- Stable Electron startup and navigation
 - Consistent browser chrome layout
-- Reliable tabs and navigation
-- Profiles and incognito isolation
-- Bookmarks and history
-- Search failure handling
-- CI and reproducible builds
+- Reliable tabs and BrowserView lifecycle
+- Profiles and incognito foundations
+- Search failure handling and clear fallbacks
+- CI and reproducible local builds
+- Security/isolation hardening
+- Better diagnostics and health checks
 
-## Browser platform
+## Next — Everyday browser
 
+- Bookmarks and history polish
 - Download manager
-- Session restore
+- Session restore/crash recovery
 - Better permission controls
 - Privacy controls
+- Browser data import/export
+- Accessibility and keyboard-navigation improvements
+
+## Later — Power platform
+
 - Extension architecture
-- Crash recovery
-- Import/export of browser data
+- Search-provider failover and configurable providers
+- Faster result delivery and caching
+- AI-assisted browsing workflows with explicit user control
+- Provider failover for AI services
+- Observability and performance tooling
 
-## Search and intelligence
-
-- Search-provider failover
-- Faster result delivery
-- Configurable providers
-- AI-assisted browsing workflows
-- Context-aware tools with explicit user control
-
-## Release engineering
+## Distribution
 
 - Signed installers
 - Automated update channels
 - Release verification
-- Cross-platform packaging
-- Observability and synthetic checks
+- Cross-platform packaging hardening
+- Synthetic uptime checks
 
 ## Community-led backlog
 
-The highest-value roadmap input comes from real users. Reproducible issues, UX feedback, performance reports, and well-scoped feature proposals can move priorities forward.
+The highest-value roadmap input comes from real users. Reproducible bugs, UX feedback, performance reports, accessibility observations, and well-scoped feature proposals can change priorities.
+
+See [Community](community.md) and [Feedback](feedback.md) for how to participate.
