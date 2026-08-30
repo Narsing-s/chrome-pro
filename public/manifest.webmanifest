@@ -1,0 +1,9 @@
+{
+  "name": "Chrome Pro",
+  "short_name": "Chrome Pro",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "description": "Fast, private and intelligent browser workspace"
+}
