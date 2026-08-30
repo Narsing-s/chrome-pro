@@ -26,7 +26,22 @@ function navigationErrorPage(code, description, url) { const html = `<!doctype h
 
 function createWindow(profile = 'default', incognito = false) {
   const ses = incognito ? session.fromPartition(`incognito-${Date.now()}-${Math.random()}`) : session.fromPath(profilePath(profile), { cache: true });
-  const win = new BrowserWindow({ width: 1440, height: 900, minWidth: 1000, minHeight: 650, title: incognito ? 'Chrome Pro — Incognito' : 'Chrome Pro', backgroundColor: '#202124', frame: false, titleBarStyle: 'hidden', autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: false, nodeIntegration: false } });
+  const win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 650,
+    title: incognito ? 'Chrome Pro — Incognito' : 'Chrome Pro',
+    backgroundColor: '#202124',
+    frame: true,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      sandbox: false,
+      nodeIntegration: false
+    }
+  });
   const s = { profile, incognito, session: ses, tabs: [], active: 0, chrome: null };
   windows.set(win.id, s); activeWindow = win;
   const addTab = (u = START_URL) => {
