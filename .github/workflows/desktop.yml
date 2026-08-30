@@ -1,0 +1,36 @@
+name: Chrome Pro Desktop
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            script: npm run dist -- --win
+          - os: macos-latest
+            script: npm run dist -- --mac
+          - os: ubuntu-latest
+            script: npm run dist -- --linux
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package.json
+      - run: npm install
+      - run: ${{ matrix.script }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chrome-pro-${{ matrix.os }}
+          path: desktop/dist/*
