@@ -1,7 +1,7 @@
 const { app, BrowserWindow, BrowserView, session, ipcMain, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const START_URL = process.env.CHROME_PRO_START_URL || 'https://chrome-pro.vercel.app';
+const START_URL = process.env.CHROME_PRO_START_URL || 'https://www.google.com';
 const windows = new Map(); let activeWindow = null;
 const dataFile=()=>path.join(app.getPath('userData'),'browser-data.json'); let data={bookmarks:[],history:[]};
 function loadData(){try{data=JSON.parse(fs.readFileSync(dataFile(),'utf8'))}catch{}}
