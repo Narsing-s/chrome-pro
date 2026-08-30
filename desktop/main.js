@@ -25,7 +25,21 @@ function sendState(s) { if (alive(s.chrome)) s.chrome.webContents.send('browser:
 function navigationErrorPage(code, description, url) { const html = `<!doctype html><html><head><meta charset="utf-8"><title>Chrome Pro — Page unavailable</title><style>body{margin:0;background:#f8f9fa;color:#202124;font:16px system-ui,-apple-system,Segoe UI,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh}.card{max-width:620px;padding:42px;text-align:center}h1{font-size:26px;margin:0 0 12px}p{color:#5f6368;line-height:1.55}.code{font:13px ui-monospace,monospace;background:#eef0f2;border-radius:8px;padding:8px 12px;display:inline-block;margin:10px 0}button{border:0;border-radius:20px;padding:10px 18px;background:#1a73e8;color:white;font-weight:600;cursor:pointer}</style></head><body><div class="card"><h1>We couldn't load this page</h1><p>Chrome Pro could not connect to the requested website. Check your internet connection or try again.</p><div class="code">${String(code || 'NETWORK_ERROR')} — ${String(description || 'Connection failed')}</div><p style="word-break:break-all">${String(url || '')}</p><button onclick="history.back()">Go back</button></div></body></html>`; return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`; }
 function createWindow(profile = 'default', incognito = false) {
   const ses = incognito ? session.fromPartition(`incognito-${Date.now()}-${Math.random()}`) : session.fromPath(profilePath(profile), { cache: true });
-  const win = new BrowserWindow({ width: 1440, height: 900, minWidth: 1000, minHeight: 650, title: incognito ? 'Chrome Pro — Incognito' : 'Chrome Pro', backgroundColor: '#202124', autoHideMenuBar: true });
+  const win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 1000,
+    minHeight: 650,
+    title: incognito ? 'Chrome Pro — Incognito' : 'Chrome Pro',
+    backgroundColor: '#202124',
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      sandbox: false,
+      nodeIntegration: false
+    }
+  });
   const s = { profile, incognito, session: ses, tabs: [], active: 0, chrome: null };
   windows.set(win.id, s); activeWindow = win;
   const addTab = (u = START_URL) => {
