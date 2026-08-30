@@ -71,6 +71,7 @@ export default function Home() {
     <header className="topbar">
       <div className="brand"><span className="logo">◉</span><b>Chrome Pro</b><span className="beta">PRO</span></div>
       <div className="status"><span className="dot"/> Protected <span className="statusSep">•</span> Online</div>
+      <a href="/download" className="downloadTop">Download Desktop</a>
       <button className="icon" aria-label="Settings" onClick={e => { e.stopPropagation(); setMenu(!menu); }}>⚙</button>
       {menu && <div className="menu" onClick={e => e.stopPropagation()}><b>Chrome Pro settings</b><span>Privacy protection: On</span><span>AI Search: Ready</span><span>Session restore: On</span><label className="toggle"><input type="checkbox" checked={dark} onChange={e => setDark(e.target.checked)}/> Dark appearance</label><button onClick={() => { localStorage.removeItem(STORAGE_KEY); location.reload(); }}>Reset local data</button></div>}
     </header>
@@ -95,7 +96,7 @@ export default function Home() {
       <div className="search"><span>⌕</span><input className="searchInput" autoFocus value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && doSearch()} placeholder="Search the web or ask AI"/><button onClick={() => setAi(!ai)} className={ai ? 'ai activeAI' : 'ai'}>✦ AI</button><button onClick={doSearch}>Search</button></div>
       {ai && <div className="aiPanel"><b>✦ Chrome Pro AI</b><span>AI mode is ready. Connect your preferred AI provider for answers, summaries and research.</span><button onClick={() => setAi(false)}>×</button></div>}
 
-      <div className="quick">{shortcuts.map(([icon, name, link]) => <button key={name} onClick={() => window.location.href = link}><span>{icon}</span>{name}</button>)}<button onClick={addTab}><span>＋</span>New tab</button></div>
+      <div className="quick"><a className="downloadQuick" href="/download">⬇ Download Chrome Pro</a>{shortcuts.map(([icon, name, link]) => <button key={name} onClick={() => window.location.href = link}><span>{icon}</span>{name}</button>)}<button onClick={addTab}><span>＋</span>New tab</button></div>
 
       <div className="cards">
         <article><span>⚡</span><div><b>AI Search</b><p>Switch between classic web search and AI-powered research.</p></div></article>
