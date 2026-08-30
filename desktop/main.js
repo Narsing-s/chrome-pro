@@ -3,15 +3,14 @@ const path = require('path');
 const fs = require('fs');
 const START_URL = process.env.CHROME_PRO_START_URL || 'https://www.google.com';
 const SEARCH_URL = process.env.CHROME_PRO_SEARCH_URL || 'https://www.google.com/search?q=';
-// Custom browser chrome: title row + tabs row + address row.
-const UI_HEIGHT = 124;
+// Custom chrome contains only navigation/tabs + address toolbar. No native title row.
+const UI_HEIGHT = 94;
 const NAV_TIMEOUT_MS = 20000;
 const windows = new Map();
 let activeWindow = null;
 const dataFile=()=>path.join(app.getPath('userData'),'browser-data.json');
 let data={bookmarks:[],history:[]};
-function loadData(){try{data=JSON.parse(fs.readFileSync(dataFile(),'utf8'))}catch(_){}
-}
+function loadData(){try{data=JSON.parse(fs.readFileSync(dataFile(),'utf8'))}catch(_){} }
 function saveData(){try{fs.mkdirSync(path.dirname(dataFile()),{recursive:true});fs.writeFileSync(dataFile(),JSON.stringify(data,null,2))}catch(e){console.error(e)}}
 const profilePath=n=>path.join(app.getPath('userData'),'profiles',n);
 function normalizeUrl(input){const v=String(input||'').trim();if(!v)return START_URL;try{return new URL(v).href}catch(_){}if(/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(v))return `https://${v}`;return `${SEARCH_URL}${encodeURIComponent(v)}`}
@@ -22,7 +21,7 @@ function layout(w,s){const b=w.getContentBounds();const h=Math.max(1,b.height-UI
 function stateTabs(s){return s.tabs.map(v=>({title:alive(v)?v.webContents.getTitle()||'New Tab':'New Tab',url:alive(v)?v.webContents.getURL():'',loading:alive(v)&&v.webContents.isLoading(),canGoBack:canGoBack(v),canGoForward:canGoForward(v)}))}
 function sendState(s){if(alive(s.chrome))s.chrome.webContents.send('browser:state',{active:s.active,profile:s.profile,incognito:s.incognito,tabs:stateTabs(s)})}
 function navigationErrorPage(code,description,url){const html=`<!doctype html><html><body style="margin:0;background:#f8f9fa;color:#202124;font:16px system-ui;display:grid;place-items:center;height:100vh"><main style="max-width:620px;padding:40px;text-align:center"><h1>We couldn't load this page</h1><p>Check your internet connection or try again.</p><code>${String(code||'NETWORK_ERROR')} — ${String(description||'Connection failed')}</code><p style="word-break:break-all">${String(url||'')}</p><button onclick="history.back()">Go back</button></main></body></html>`;return`data:text/html;charset=utf-8,${encodeURIComponent(html)}`}
-function createWindow(profile='default',incognito=false){const ses=incognito?session.fromPartition(`incognito-${Date.now()}-${Math.random()}`):session.fromPath(profilePath(profile),{cache:true});const win=new BrowserWindow({width:1440,height:900,minWidth:1000,minHeight:650,title:'Chrome Pro',backgroundColor:'#15171b',frame:false,resizable:true,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:false,nodeIntegration:false}});const s={profile,incognito,session:ses,tabs:[],active:0,chrome:null};windows.set(win.id,s);activeWindow=win;
+function createWindow(profile='default',incognito=false){const ses=incognito?session.fromPartition(`incognito-${Date.now()}-${Math.random()}`):session.fromPath(profilePath(profile),{cache:true});const win=new BrowserWindow({width:1440,height:900,minWidth:1000,minHeight:650,title:'',backgroundColor:'#111317',frame:false,resizable:true,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.js'),contextIsolation:true,sandbox:false,nodeIntegration:false}});const s={profile,incognito,session:ses,tabs:[],active:0,chrome:null};windows.set(win.id,s);activeWindow=win;
 const addTab=(u=START_URL)=>{const v=new BrowserView({webPreferences:{session:ses,contextIsolation:true,sandbox:true,nodeIntegration:false}});s.tabs.push(v);s.active=s.tabs.length-1;win.addBrowserView(v);layout(win,s);v.webContents.loadURL(normalizeUrl(u),{timeout:NAV_TIMEOUT_MS}).catch(e=>console.warn('Navigation failed:',e.code||e.message));v.webContents.on('did-navigate',(_e,n)=>{if(!incognito){data.history.unshift({url:n,time:Date.now()});data.history=data.history.slice(0,500);saveData()}sendState(s)});['did-start-loading','did-stop-loading','page-title-updated','did-fail-load','did-navigate-in-page'].forEach(e=>v.webContents.on(e,()=>sendState(s)));v.webContents.on('did-fail-load',(_e,c,d,f,main)=>{if(main&&c!==-3)v.webContents.loadURL(navigationErrorPage(c,d,f)).catch(()=>{})});v.webContents.on('render-process-gone',()=>sendState(s));sendState(s);return v};
 s.addTab=addTab;s.chrome=win.webContents;win.loadFile(path.join(__dirname,'browser-ui.html'));win.webContents.once('did-finish-load',()=>{layout(win,s);sendState(s)});addTab();win.on('resize',()=>layout(win,s));win.on('focus',()=>{activeWindow=win;layout(win,s);sendState(s)});win.on('closed',()=>{s.tabs.forEach(v=>{if(alive(v))v.webContents.destroy()});windows.delete(win.id);if(activeWindow===win)activeWindow=BrowserWindow.getAllWindows()[0]||null});return win}
 function state(){return windows.get(activeWindow?.id)}
