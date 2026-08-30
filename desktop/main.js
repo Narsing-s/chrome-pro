@@ -10,15 +10,8 @@ let activeWindow = null;
 const dataFile = () => path.join(app.getPath('userData'), 'browser-data.json');
 let data = { bookmarks: [], history: [] };
 
-function loadData() {
-  try { data = JSON.parse(fs.readFileSync(dataFile(), 'utf8')); } catch (_) {}
-}
-function saveData() {
-  try {
-    fs.mkdirSync(path.dirname(dataFile()), { recursive: true });
-    fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2));
-  } catch (e) { console.error(e); }
-}
+function loadData() { try { data = JSON.parse(fs.readFileSync(dataFile(), 'utf8')); } catch (_) {} }
+function saveData() { try { fs.mkdirSync(path.dirname(dataFile()), { recursive: true }); fs.writeFileSync(dataFile(), JSON.stringify(data, null, 2)); } catch (e) { console.error(e); } }
 const profilePath = n => path.join(app.getPath('userData'), 'profiles', n);
 function normalizeUrl(input) {
   const v = String(input || '').trim();
@@ -35,7 +28,13 @@ function layout(w, s) {
   if (alive(v)) v.setBounds({ x: 0, y: UI_HEIGHT, width: b.width, height: Math.max(0, b.height - UI_HEIGHT) });
 }
 function stateTabs(s) {
-  return s.tabs.filter(alive).map(v => ({ title: v.webContents.getTitle() || 'New Tab', url: v.webContents.getURL(), loading: v.webContents.isLoading() }));
+  return s.tabs.filter(alive).map(v => ({
+    title: v.webContents.getTitle() || 'New Tab',
+    url: v.webContents.getURL(),
+    loading: v.webContents.isLoading(),
+    canGoBack: v.webContents.canGoBack(),
+    canGoForward: v.webContents.canGoForward()
+  }));
 }
 function sendState(s) {
   if (alive(s.chrome)) s.chrome.webContents.send('browser:state', { active: s.active, profile: s.profile, incognito: s.incognito, tabs: stateTabs(s) });
@@ -49,11 +48,8 @@ function createWindow(profile = 'default', incognito = false) {
   const addTab = (u = START_URL) => {
     const v = new BrowserView({ webPreferences: { session: ses, contextIsolation: true, sandbox: true, nodeIntegration: false } });
     s.tabs.push(v); s.active = s.tabs.length - 1; win.setBrowserView(v); v.webContents.loadURL(normalizeUrl(u));
-    v.webContents.on('did-navigate', (_e, n) => {
-      if (!incognito) { data.history.unshift({ url: n, time: Date.now() }); data.history = data.history.slice(0, 500); saveData(); }
-      sendState(s);
-    });
-    ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-fail-load'].forEach(e => v.webContents.on(e, () => sendState(s)));
+    v.webContents.on('did-navigate', (_e, n) => { if (!incognito) { data.history.unshift({ url: n, time: Date.now() }); data.history = data.history.slice(0, 500); saveData(); } sendState(s); });
+    ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-fail-load', 'did-navigate-in-page'].forEach(e => v.webContents.on(e, () => sendState(s)));
     layout(win, s); sendState(s); return v;
   };
   s.addTab = addTab;
@@ -62,7 +58,7 @@ function createWindow(profile = 'default', incognito = false) {
   s.chrome = chrome; win.setBrowserView(chrome); chrome.webContents.loadFile(path.join(__dirname, 'browser-ui.html'));
   chrome.webContents.once('did-finish-load', () => { layout(win, s); sendState(s); });
   addTab();
-  win.on('resize', () => layout(win, s)); win.on('focus', () => activeWindow = win);
+  win.on('resize', () => layout(win, s)); win.on('focus', () => { activeWindow = win; sendState(s); });
   win.on('closed', () => { s.tabs.forEach(v => { if (alive(v)) v.webContents.destroy(); }); if (alive(chrome)) chrome.webContents.destroy(); windows.delete(win.id); if (activeWindow === win) activeWindow = BrowserWindow.getAllWindows()[0] || null; });
   return win;
 }
